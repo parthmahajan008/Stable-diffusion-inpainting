@@ -3,13 +3,14 @@ import cv2
 from PIL import ImageFont, ImageDraw, Image
 import matplotlib.pyplot as plt
 
-# Assuming 'image' is your original digital advertisement image
-# Assuming 'masked_cropped_image' is the extracted button region after inpainting
-# Replace with your new CTA text and the path to your Arial font file
+# Load the original image
+# image = cv2.imread('path_to_your_image.jpg')  # Uncomment and adjust if needed
+
+# Define the new CTA text and font details
 new_cta_text = "Your New CTA Text"
 font_path = "arial.ttf"
-font_size = 40  # Adjust based on your needs
-padding = 10  # Adjust padding as needed
+font_size = 40
+padding = 10
 
 # Load the font
 font = ImageFont.truetype(font_path, font_size)
@@ -35,10 +36,8 @@ new_button_height = int(original_button_height * scale)
 # Resize the masked button image
 resized_button_image = cv2.resize(masked_cropped_image, (new_button_width, new_button_height))
 
-# Convert OpenCV image to PIL for consistent color handling
+# Convert OpenCV image to PIL for text drawing
 resized_button_pil = Image.fromarray(cv2.cvtColor(resized_button_image, cv2.COLOR_BGR2RGB))
-
-# Draw the new CTA text onto the resized button
 draw = ImageDraw.Draw(resized_button_pil)
 text_x = padding
 text_y = padding
@@ -47,18 +46,23 @@ draw.text((text_x, text_y), new_cta_text, font=font, fill="white")
 # Convert the PIL image back to OpenCV format
 final_button_with_cta = cv2.cvtColor(np.array(resized_button_pil), cv2.COLOR_RGB2BGR)
 
-# Create a blank image with the same size as the original image
-blank_image = np.zeros_like(image)
+# Define the original button's position based on the input points
+input_point = np.array([[160, 50], [153, 100]])
+min_y, max_y = input_point[:, 1].min(), input_point[:, 1].max()
+original_y = min_y
 
 # Calculate the position to place the resized button
-y_offset = (image.shape[0] - new_button_height) // 2
-x_offset = (image.shape[1] - new_button_width) // 2
+x_offset = min_x
+y_offset = original_y
 
 # Ensure button does not go out of bounds
 y_offset = max(y_offset, 0)
 x_offset = max(x_offset, 0)
 
-# Place the resized button onto the blank image
+# Create a blank image with the same size as the original image
+blank_image = np.zeros_like(image)
+
+# Place the resized button onto the blank image at the correct position
 blank_image[y_offset:y_offset+new_button_height, x_offset:x_offset+new_button_width] = final_button_with_cta
 
 # Create a mask for the button area
