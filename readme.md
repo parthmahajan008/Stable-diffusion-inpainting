@@ -35,6 +35,18 @@ new_button_height = int(original_button_height * scale)
 # Resize the masked button image
 resized_button_image = cv2.resize(masked_cropped_image, (new_button_width, new_button_height))
 
+# Convert OpenCV image to PIL for consistent color handling
+resized_button_pil = Image.fromarray(cv2.cvtColor(resized_button_image, cv2.COLOR_BGR2RGB))
+
+# Draw the new CTA text onto the resized button
+draw = ImageDraw.Draw(resized_button_pil)
+text_x = padding
+text_y = padding
+draw.text((text_x, text_y), new_cta_text, font=font, fill="white")
+
+# Convert the PIL image back to OpenCV format
+final_button_with_cta = cv2.cvtColor(np.array(resized_button_pil), cv2.COLOR_RGB2BGR)
+
 # Create a blank image with the same size as the original image
 blank_image = np.zeros_like(image)
 
@@ -47,27 +59,18 @@ y_offset = max(y_offset, 0)
 x_offset = max(x_offset, 0)
 
 # Place the resized button onto the blank image
-blank_image[y_offset:y_offset+new_button_height, x_offset:x_offset+new_button_width] = resized_button_image
+blank_image[y_offset:y_offset+new_button_height, x_offset:x_offset+new_button_width] = final_button_with_cta
 
-# Draw the new CTA text onto the resized button
-resized_button_pil = Image.fromarray(blank_image)
-draw = ImageDraw.Draw(resized_button_pil)
-text_x = x_offset + padding
-text_y = y_offset + padding
-draw.text((text_x, text_y), new_cta_text, font=font, fill="white")
-
-# Convert the PIL image back to a NumPy array
-final_image_with_cta = np.array(resized_button_pil)
-
-# Place the final resized button with new text back onto the original image
 # Create a mask for the button area
 button_mask = np.zeros_like(image, dtype=np.uint8)
-button_mask[y_offset:y_offset+new_button_height, x_offset:x_offset+new_button_width] = final_image_with_cta[y_offset:y_offset+new_button_height, x_offset:x_offset+new_button_width]
+button_mask[y_offset:y_offset+new_button_height, x_offset:x_offset+new_button_width] = final_button_with_cta
 
-# Overlay the button onto the original image
+# Convert mask to grayscale and threshold
 button_mask_gray = cv2.cvtColor(button_mask, cv2.COLOR_BGR2GRAY)
 _, button_mask_binary = cv2.threshold(button_mask_gray, 1, 255, cv2.THRESH_BINARY)
-button_overlay = cv2.bitwise_and(final_image_with_cta, final_image_with_cta, mask=button_mask_binary)
+
+# Overlay the button onto the original image
+button_overlay = cv2.bitwise_and(final_button_with_cta, final_button_with_cta, mask=button_mask_binary)
 final_image_with_button = cv2.addWeighted(image, 1.0, button_overlay, 1.0, 0)
 
 # Visualize the final image with the new CTA
