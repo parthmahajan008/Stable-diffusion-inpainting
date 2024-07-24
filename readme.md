@@ -59,12 +59,6 @@ y_offset = original_y
 y_offset = max(y_offset, 0)
 x_offset = max(x_offset, 0)
 
-# Create a blank image with the same size as the original image
-blank_image = np.zeros_like(image)
-
-# Place the resized button onto the blank image at the correct position
-blank_image[y_offset:y_offset+new_button_height, x_offset:x_offset+new_button_width] = final_button_with_cta
-
 # Create a mask for the button area
 button_mask = np.zeros_like(image, dtype=np.uint8)
 button_mask[y_offset:y_offset+new_button_height, x_offset:x_offset+new_button_width] = final_button_with_cta
@@ -73,9 +67,13 @@ button_mask[y_offset:y_offset+new_button_height, x_offset:x_offset+new_button_wi
 button_mask_gray = cv2.cvtColor(button_mask, cv2.COLOR_BGR2GRAY)
 _, button_mask_binary = cv2.threshold(button_mask_gray, 1, 255, cv2.THRESH_BINARY)
 
-# Overlay the button onto the original image
-button_overlay = cv2.bitwise_and(final_button_with_cta, final_button_with_cta, mask=button_mask_binary)
-final_image_with_button = cv2.addWeighted(image, 1.0, button_overlay, 1.0, 0)
+# Prepare the button overlay using the mask
+button_overlay = np.zeros_like(image)
+button_overlay[y_offset:y_offset+new_button_height, x_offset:x_offset+new_button_width] = final_button_with_cta
+
+# Use bitwise operations to combine the original image with the button overlay
+final_image_with_button = cv2.bitwise_and(image, image, mask=cv2.bitwise_not(button_mask_binary))
+final_image_with_button = cv2.add(final_image_with_button, button_overlay)
 
 # Visualize the final image with the new CTA
 plt.figure(figsize=(10, 10))
