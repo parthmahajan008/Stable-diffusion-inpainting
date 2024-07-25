@@ -30,8 +30,7 @@ new_cta_text = "Your New CTA Text"
 font_path = "arial.ttf"
 font_size = 40
 padding = 10
-border_color = (255, 0, 0)  # Red border color
-border_width = 5  # Border width in pixels
+border_thickness = 5
 max_width_factor = 1.5  # Maximum button width as a factor of the original width
 
 # Load the font
@@ -71,15 +70,17 @@ for line in wrapped_text:
     draw.text((padding, y), line, font=font, fill="white")
     y += draw.textsize(line, font=font)[1]
 
-# Draw the border inside the button
-for i in range(border_width):
-    draw.rectangle(
-        [i, i, new_button_width - i - 1, new_button_height - i - 1],
-        outline=border_color
-    )
+# Create a version with the border
+bordered_button_pil = resized_button_pil.copy()
+draw_bordered = ImageDraw.Draw(bordered_button_pil)
 
-# Convert the PIL image back to OpenCV format
+# Draw the inner border
+border_rect = [border_thickness, border_thickness, new_button_width - border_thickness, new_button_height - border_thickness]
+draw_bordered.rectangle(border_rect, outline="white", width=border_thickness)
+
+# Convert the PIL images back to OpenCV format
 final_button_with_cta = cv2.cvtColor(np.array(resized_button_pil), cv2.COLOR_RGB2BGR)
+final_button_with_cta_bordered = cv2.cvtColor(np.array(bordered_button_pil), cv2.COLOR_RGB2BGR)
 
 # Define the original button's position based on the input points
 input_point = np.array([[160, 50], [153, 100]])
@@ -105,31 +106,23 @@ button_mask[y_offset:y_offset+original_button_height, x_offset:x_offset+original
 # Inpaint the original button area
 inpainted_image = cv2.inpaint(image, button_mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
 
-# Overlay the new button onto the inpainted image
+# Overlay the new button onto the inpainted image (without border)
 final_image_with_button = inpainted_image.copy()
 final_image_with_button[y_offset:y_offset+new_button_height, x_offset:x_offset+new_button_width] = final_button_with_cta
 
-# Visualize the final image with the new CTA
+# Overlay the new button onto the inpainted image (with border)
+final_image_with_button_bordered = inpainted_image.copy()
+final_image_with_button_bordered[y_offset:y_offset+new_button_height, x_offset:x_offset+new_button_width] = final_button_with_cta_bordered
+
+# Visualize the final images
 plt.figure(figsize=(10, 10))
 plt.imshow(cv2.cvtColor(final_image_with_button, cv2.COLOR_BGR2RGB))
+plt.title("Button without Border")
 plt.axis('off')
 plt.show()
 
-# Generate the button without a border for comparison
-resized_button_pil_no_border = Image.fromarray(cv2.cvtColor(resized_button_image, cv2.COLOR_BGR2RGB))
-draw_no_border = ImageDraw.Draw(resized_button_pil_no_border)
-y = padding
-for line in wrapped_text:
-    draw_no_border.text((padding, y), line, font=font, fill="white")
-    y += draw.textsize(line, font=font)[1]
-final_button_no_border = cv2.cvtColor(np.array(resized_button_pil_no_border), cv2.COLOR_RGB2BGR)
-
-# Overlay the new button without a border onto the inpainted image
-final_image_with_button_no_border = inpainted_image.copy()
-final_image_with_button_no_border[y_offset:y_offset+new_button_height, x_offset:x_offset+new_button_width] = final_button_no_border
-
-# Visualize the final image with the new CTA without border
 plt.figure(figsize=(10, 10))
-plt.imshow(cv2.cvtColor(final_image_with_button_no_border, cv2.COLOR_BGR2RGB))
+plt.imshow(cv2.cvtColor(final_image_with_button_bordered, cv2.COLOR_BGR2RGB))
+plt.title("Button with Border")
 plt.axis('off')
 plt.show()
