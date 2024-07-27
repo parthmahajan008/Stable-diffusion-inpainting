@@ -1,128 +1,78 @@
-import numpy as np
-import cv2
-from PIL import ImageFont, ImageDraw, Image
-import matplotlib.pyplot as plt
+Creative Mutation
+Setup Instructions
+Devcontainer Setup
+Open the project folder in the devcontainer.
+The devcontainer bootup will run all necessary installation scripts.
+llama3:70b Setup for Alternate CTA Generation
+Start the llama server:
+bash
+Copy code
+ollama serve
+Pull the llama3:70b model:
+bash
+Copy code
+ollama pull llama3:70b
+Google Cloud Vision Setup
+Ensure you have a project in Google Cloud with the Cloud Vision API enabled. Follow the setup instructions here.
+Authenticate with Google Cloud:
+bash
+Copy code
+gcloud auth application-default login
+Run the Workflow
+Execute the main workflow notebook:
+bash
+Copy code
+run notebooks/cta_workflow.ipynb
+Finetuning the Model
+Run the finetuning notebook:
+bash
+Copy code
+run notebooks/unsloth_finetuning.ipynb
+Project Details
+Process Flow for CTA Button Modification in Digital Advertisement Image
+Input: Digital Advertisement Image
 
-def wrap_text(text, font, max_width):
-    """
-    Wrap text for the given font and max_width.
-    """
-    lines = []
-    words = text.split()
-    line = []
-    
-    for word in words:
-        line_width, _ = draw.textsize(' '.join(line + [word]), font=font)
-        if line_width <= max_width:
-            line.append(word)
-        else:
-            lines.append(' '.join(line))
-            line = [word]
-    lines.append(' '.join(line))
-    
-    return lines
+Super Resolution
 
-# Load the original image
-# image = cv2.imread('path_to_your_image.jpg')  # Uncomment and adjust if needed
+Output: Enhanced Image Quality (2X resolution)
+Module: src/super_resolution
+OCR
 
-# Define the new CTA text and font details
-new_cta_text = "Your New CTA Text"
-font_path = "arial.ttf"
-font_size = 40
-padding = 10
-border_thickness = 5
-max_width_factor = 1.5  # Maximum button width as a factor of the original width
+Output: Bounding Boxes of each text element
+Module: src/ocr_module
+Font Property Extraction
 
-# Load the font
-font = ImageFont.truetype(font_path, font_size)
+Output: List of text properties and bounding boxes
+Module: src/font_prop_identification
+Finetuned LLAMA3
 
-# Calculate initial button size
-dummy_img = Image.new('RGB', (1, 1))
-draw = ImageDraw.Draw(dummy_img)
-initial_button_width, initial_button_height = draw.textsize(new_cta_text, font=font)
-max_button_width = initial_button_width * max_width_factor
+Input: Word bounding boxes
+Output: Extracted CTA text in JSON format (standard English)
+Finetuning Notebook: notebooks/unsloth_finetuning
+LLM Output Formatting
 
-# Wrap text if necessary
-wrapped_text = wrap_text(new_cta_text, font, max_button_width - 2 * padding)
-wrapped_text_height = sum(draw.textsize(line, font=font)[1] for line in wrapped_text)
-button_width = min(max_button_width, initial_button_width)
-button_height = wrapped_text_height + 2 * padding
+Output: CTA text in standard JSON format
+Module: utils/json_extractor
+Blob Creation Engine
 
-# Resize the masked_cropped_image to fit the new CTA text
-original_button_height, original_button_width, _ = masked_cropped_image.shape
-scale_x = button_width / original_button_width
-scale_y = button_height / original_button_height
-scale = max(scale_x, scale_y)  # Scale proportionally
+Input: CTA text
+Output: Single bounding box around the CTA text
+Module: src/text_formatting/blob_engine
+Inpainting Engine
 
-new_button_width = int(original_button_width * scale)
-new_button_height = int(original_button_height * scale)
+Input: Bounding box around the CTA text
+Output: Cleaned CTA button region
+Module: src/inpainting
+Generate Alternate CTA: LLAMA 3-Instruct
 
-# Resize the masked button image
-resized_button_image = cv2.resize(masked_cropped_image, (new_button_width, new_button_height))
+Input: Extracted CTA text
+Output: Alternate CTA text
+Module: src/text_generation
+LLM Output Formatting
 
-# Convert OpenCV image to PIL for text drawing
-resized_button_pil = Image.fromarray(cv2.cvtColor(resized_button_image, cv2.COLOR_BGR2RGB))
-draw = ImageDraw.Draw(resized_button_pil)
+Output: Alternate CTA text in standard JSON format
+Module: utils/json_extractor
+Segmentation Engine
 
-# Draw the wrapped text onto the resized button
-y = padding
-for line in wrapped_text:
-    draw.text((padding, y), line, font=font, fill="white")
-    y += draw.textsize(line, font=font)[1]
-
-# Create a version with the border
-bordered_button_pil = resized_button_pil.copy()
-draw_bordered = ImageDraw.Draw(bordered_button_pil)
-
-# Draw the inner border
-border_rect = [border_thickness, border_thickness, new_button_width - border_thickness, new_button_height - border_thickness]
-draw_bordered.rectangle(border_rect, outline="white", width=border_thickness)
-
-# Convert the PIL images back to OpenCV format
-final_button_with_cta = cv2.cvtColor(np.array(resized_button_pil), cv2.COLOR_RGB2BGR)
-final_button_with_cta_bordered = cv2.cvtColor(np.array(bordered_button_pil), cv2.COLOR_RGB2BGR)
-
-# Define the original button's position based on the input points
-input_point = np.array([[160, 50], [153, 100]])
-min_y, max_y = input_point[:, 1].min(), input_point[:, 1].max()
-original_y = min_y
-
-# Calculate the position to place the resized button
-x_offset = min_x
-y_offset = original_y
-
-# Ensure button does not go out of bounds
-y_offset = max(y_offset, 0)
-x_offset = max(x_offset, 0)
-
-# Adjust position to avoid corners
-x_offset = min(x_offset, image.shape[1] - new_button_width)
-y_offset = min(y_offset, image.shape[0] - new_button_height)
-
-# Create a mask for inpainting the original button area
-button_mask = np.zeros(image.shape[:2], dtype=np.uint8)
-button_mask[y_offset:y_offset+original_button_height, x_offset:x_offset+original_button_width] = 1
-
-# Inpaint the original button area
-inpainted_image = cv2.inpaint(image, button_mask, inpaintRadius=3, flags=cv2.INPAINT_TELEA)
-
-# Overlay the new button onto the inpainted image (without border)
-final_image_with_button = inpainted_image.copy()
-final_image_with_button[y_offset:y_offset+new_button_height, x_offset:x_offset+new_button_width] = final_button_with_cta
-
-# Overlay the new button onto the inpainted image (with border)
-final_image_with_button_bordered = inpainted_image.copy()
-final_image_with_button_bordered[y_offset:y_offset+new_button_height, x_offset:x_offset+new_button_width] = final_button_with_cta_bordered
-
-# Visualize the final images
-plt.figure(figsize=(10, 10))
-plt.imshow(cv2.cvtColor(final_image_with_button, cv2.COLOR_BGR2RGB))
-plt.title("Button without Border")
-plt.axis('off')
-plt.show()
-
-plt.figure(figsize=(10, 10))
-plt.imshow(cv2.cvtColor(final_image_with_button_bordered, cv2.COLOR_BGR2RGB))
-plt.title("Button with Border")
-plt.axis('off')
-plt.show()
+Input: Formatted alternate CTA text
+Output: Final Output Image
